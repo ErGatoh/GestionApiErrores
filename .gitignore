@@ -39,6 +39,23 @@ build/
 !.env.example
 *.launch
 
+### Certificados y almacenes de confianza locales ###
+*.pem
+*.crt
+*.cer
+*.key
+*.p12
+*.pfx
+*.jks
+certs/
+truststores/
+
+### Archivos locales de contraseñas ###
+*.secret
+*.password
+credentials.properties
+application-local.properties
+
 CONTEXTO_CODEX_PERSONA_1.md
 AGENTS.md
 Práctica 2 - Diseño correcto de una API REST.pdf
