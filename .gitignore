@@ -38,3 +38,7 @@ build/
 .env.*
 !.env.example
 *.launch
+
+CONTEXTO_CODEX_PERSONA_1.md
+AGENTS.md
+Práctica 2 - Diseño correcto de una API REST.pdf
