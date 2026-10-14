@@ -13,7 +13,7 @@ Proyecto de clase del Grupo 5. Jorge Fernández ha preparado la conexión a Aive
 | Se creó la entidad `Producto` con `BigDecimal` para el precio y un repositorio JPA con `existsByCodigo`. | El modelo coincide con MySQL y permite detectar códigos repetidos. |
 | Se añadieron servicio y controlador CRUD. | El servicio concentra la lógica; el controlador expone cinco operaciones HTTP. Los errores usan excepciones estándar provisionales para que la Persona 2 los sustituya. |
 
-**Estado comprobado:** Jorge confirmó que Spring Boot conectaba con Aiven antes de crear la tabla. Las seis fuentes Java actuales compilaron con `javac --release 17`. Sigue pendiente ejecutar el esquema y probar el CRUD contra Aiven; no se ha verificado todavía el empaquetado con Maven en este entorno.
+**Estado actual:** la aplicación arrancó desde Eclipse con JDK 17, conectó con MySQL 8.4.11 en Aiven e inicializó JPA sin errores de esquema. Tomcat quedó escuchando en el puerto 8080 y apareció `Started Tema5Application`. Las seis fuentes Java también compilaron con `javac --release 17`. Aún no se han comprobado todas las operaciones CRUD contra Aiven ni el empaquetado completo con Maven.
 
 ## Una base, tres personas
 
@@ -24,10 +24,10 @@ El responsable del proyecto invita a los compañeros a la organización de Aiven
 ## Preparación de Aiven
 
 1. Comprobar en Aiven que el servicio MySQL está activo. Los datos proporcionados son host `api-errores-hub-grupo4-proyecto5-apirest.a.aivencloud.com`, puerto `12698` y base `defaultdb`.
-2. Abrir una terminal en la raíz de este repositorio, conectar a `defaultdb` y ejecutar una vez `database/schema.sql` con `avnadmin`. El script no crea otra base.
+2. La tabla `productos` ya está creada en `defaultdb`. Si hace falta reproducirla en otra instalación, ejecutar `database/schema.sql` con `avnadmin`; el script no crea otra base.
 3. Compartir la contraseña de `avnadmin` con los compañeros por un canal privado. No incluirla en Git.
 
-Para entrar en `defaultdb` como administrador, abrir una terminal con el cliente `mysql` instalado y ejecutar:
+Para comprobar la tabla o reproducirla en otra instalación, abrir una terminal con el cliente `mysql` instalado y ejecutar:
 
 ```bash
 mysql -h api-errores-hub-grupo4-proyecto5-apirest.a.aivencloud.com -P 12698 -u avnadmin -p --ssl-mode=REQUIRED defaultdb
@@ -35,7 +35,7 @@ mysql -h api-errores-hub-grupo4-proyecto5-apirest.a.aivencloud.com -P 12698 -u a
 
 Después, introducir la **contraseña de `avnadmin`** cuando `mysql` la solicite. La opción `-p` abre esa petición interactiva: no añadir la contraseña al comando. Spring Boot utiliza ese mismo usuario mediante las variables de entorno.
 
-Dentro del cliente MySQL, crear y comprobar la tabla:
+Dentro del cliente MySQL, comprobar la tabla actual o ejecutar el script si es necesario reproducirla:
 
 ```sql
 SOURCE database/schema.sql;
@@ -62,26 +62,23 @@ No incluir credenciales reales en `application.properties`, `.env.example`, comm
 1. Importar **la raíz de este repositorio** mediante `File → Import → Maven → Existing Maven Projects`. Utilizar un JDK 17.
 2. Abrir `Run → Run Configurations… → Spring Boot App` y seleccionar `Tema5Application`.
 3. En la pestaña `Environment`, añadir `DB_URL`, `DB_USER` y `DB_PASSWORD` con los valores de la base compartida. Guardar la configuración solo en el equipo local; no exportar un archivo `.launch` que contenga la contraseña.
-4. Ejecutar la aplicación después de crear la tabla `productos`.
+4. Ejecutar la aplicación con la tabla `productos` ya creada.
 
-### Configuración temporal en PowerShell
+## Cómo funciona la aplicación
 
-En una terminal local, definir las variables antes de ejecutar Maven:
+Spring Boot recibe las peticiones HTTP en `ProductoController`, que delega en `ProductoService`. El servicio decide cómo crear, consultar, actualizar o borrar un producto y utiliza `ProductoRepository` para acceder a la tabla `productos` de Aiven mediante Spring Data JPA. `Producto.java` representa cada fila de esa tabla.
 
-```powershell
-$env:DB_URL = 'jdbc:mysql://api-errores-hub-grupo4-proyecto5-apirest.a.aivencloud.com:12698/defaultdb?sslMode=REQUIRED'
-$env:DB_USER = 'avnadmin'
-$env:DB_PASSWORD = 'TU_PASSWORD_REAL'
-.\mvnw.cmd spring-boot:run
-```
+La aplicación se ejecuta en el equipo donde se inicia Eclipse. En el arranque comprobado, Tomcat usó el puerto **8080** y la dirección base de la API fue **[http://localhost:8080/api/productos](http://localhost:8080/api/productos)**. `localhost` apunta al propio equipo; esta dirección no publica la API en Internet. El puerto de Aiven (`12698`) corresponde a la conexión MySQL y no a las peticiones HTTP de la API.
 
-Los valores del ejemplo son marcadores. Sustituirlos localmente y evitar guardar comandos con contraseñas reales en archivos o historiales compartidos.
+| Método | Ruta | Función |
+| --- | --- | --- |
+| `GET` | `/api/productos` | Lista los productos. |
+| `GET` | `/api/productos/{id}` | Obtiene un producto por su ID. |
+| `POST` | `/api/productos` | Crea un producto. |
+| `PUT` | `/api/productos/{id}` | Actualiza un producto existente. |
+| `DELETE` | `/api/productos/{id}` | Borra un producto. |
 
-## SSL y certificado CA
-
-`sslMode=REQUIRED` exige una conexión cifrada, pero no valida explícitamente el CA ni el nombre del servidor. Es la configuración inicial solicitada. La variable opcional `AIVEN_CA_PATH` de la plantilla indica dónde se guardaría **localmente** el certificado CA descargado de Aiven; la aplicación no la utiliza automáticamente con este modo.
-
-Si después se decide verificar el CA y el nombre del servidor, cada integrante deberá importar el CA real a un truststore local, configurar su ruta y contraseña en la ejecución de Java y cambiar **solo su variable `DB_URL`** a `sslMode=VERIFY_IDENTITY`. Por ejemplo, los argumentos de la máquina virtual en Eclipse serían `-Djavax.net.ssl.trustStore=RUTA_LOCAL_AL_TRUSTSTORE` y `-Djavax.net.ssl.trustStorePassword=PASSWORD_LOCAL_DEL_TRUSTSTORE`. No escribir esos valores reales en el repositorio. Un certificado PEM no se puede indicar como si fuera directamente un truststore Java; primero hay que importarlo.
+Hibernate tiene `ddl-auto=validate`: al arrancar comprueba el esquema existente sin crear ni modificar tablas. También se configuró `spring.jpa.open-in-view=false` para que la sesión JPA no permanezca abierta durante la generación de la respuesta HTTP.
 
 ## Comprobación y diagnóstico
 
@@ -96,7 +93,7 @@ Quien no tenga la contraseña de Aiven puede revisar el código o ver una demost
 | `Access denied` | `DB_USER`, `DB_PASSWORD` y acceso del usuario `avnadmin`. |
 | `Communications link failure` | Host, puerto, servicio activo, conexión de red y cortafuegos. |
 | `Unknown database` | Nombre `defaultdb` dentro de `DB_URL`. |
-| Error SSL o certificado | Modo SSL, CA o truststore local si se usa verificación. |
+| Error SSL | Comprobar que `DB_URL` incluye `sslMode=REQUIRED` y que la conexión permite TLS. |
 | Error de validación de esquema | Conexión establecida, pero falta `productos` o sus columnas no coinciden con `Producto.java`; revisar `database/schema.sql`. |
 
 Un fallo de conexión aparece antes de poder consultar la base y suele mencionar autenticación, red o TLS. Un fallo de esquema aparece después de conectar, durante la validación JPA, e identifica una tabla o columna que falta o no coincide.

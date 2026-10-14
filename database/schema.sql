@@ -1,4 +1,4 @@
--- Crear primero la base de datos desde Aiven y seleccionarla antes de ejecutar este archivo.
+-- La tabla ya existe en Aiven; este script permite reproducirla en defaultdb.
 CREATE TABLE IF NOT EXISTS productos (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     nombre VARCHAR(100) NOT NULL,
