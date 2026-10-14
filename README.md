@@ -1,6 +1,19 @@
-# API Gestión de Errores — base de Persona 1
+# API Gestión de Errores — base de Jorge Fernández
 
-Proyecto Spring Boot con Java 17, Maven, Spring MVC, Spring Data JPA y MySQL en Aiven. Esta etapa prepara la conexión y el esquema; todavía no incluye la entidad `Producto` ni los endpoints CRUD. El tratamiento global de errores corresponde a la Persona 2. Los DTO, las validaciones y la documentación final corresponden a la Persona 3.
+Proyecto de clase del Grupo 5. Jorge Fernández ha preparado la conexión a Aiven y una API REST básica para gestionar productos. El tratamiento global de errores corresponde a la Persona 2; los DTO, las validaciones y la documentación final corresponden a la Persona 3.
+
+## Bitácora breve de Jorge Fernández
+
+| Qué se hizo | Por qué y cómo |
+| --- | --- |
+| Se dejó un único proyecto Maven con Java 17, Spring MVC, Spring Data JPA y MySQL Connector/J. | Así los tres compañeros parten de la misma base en Eclipse. |
+| Se eligió MySQL en Aiven, con `defaultdb` compartida y conexión SSL `REQUIRED`. | Todos pueden trabajar con los mismos datos sin montar MySQL local. |
+| Se configuraron `DB_URL`, `DB_USER` y `DB_PASSWORD` como variables de entorno. | La contraseña no queda escrita en el código ni en Git. |
+| Se definió `database/schema.sql` y `ddl-auto=validate`. | El script crea `productos`; Hibernate comprueba la estructura sin crear ni modificar tablas. |
+| Se creó la entidad `Producto` con `BigDecimal` para el precio y un repositorio JPA con `existsByCodigo`. | El modelo coincide con MySQL y permite detectar códigos repetidos. |
+| Se añadieron servicio y controlador CRUD. | El servicio concentra la lógica; el controlador expone cinco operaciones HTTP. Los errores usan excepciones estándar provisionales para que la Persona 2 los sustituya. |
+
+**Estado comprobado:** Jorge confirmó que Spring Boot conectaba con Aiven antes de crear la tabla. Las seis fuentes Java actuales compilaron con `javac --release 17`. Sigue pendiente ejecutar el esquema y probar el CRUD contra Aiven; no se ha verificado todavía el empaquetado con Maven en este entorno.
 
 ## Una base, tres personas
 
@@ -11,7 +24,7 @@ El responsable del proyecto invita a los compañeros a la organización de Aiven
 ## Preparación de Aiven
 
 1. Comprobar en Aiven que el servicio MySQL está activo. Los datos proporcionados son host `api-errores-hub-grupo4-proyecto5-apirest.a.aivencloud.com`, puerto `12698` y base `defaultdb`.
-2. Seleccionar `defaultdb` y ejecutar una vez `database/schema.sql` con `avnadmin`. El script no crea otra base.
+2. Abrir una terminal en la raíz de este repositorio, conectar a `defaultdb` y ejecutar una vez `database/schema.sql` con `avnadmin`. El script no crea otra base.
 3. Compartir la contraseña de `avnadmin` con los compañeros por un canal privado. No incluirla en Git.
 
 Para entrar en `defaultdb` como administrador, abrir una terminal con el cliente `mysql` instalado y ejecutar:
@@ -22,7 +35,15 @@ mysql -h api-errores-hub-grupo4-proyecto5-apirest.a.aivencloud.com -P 12698 -u a
 
 Después, introducir la **contraseña de `avnadmin`** cuando `mysql` la solicite. La opción `-p` abre esa petición interactiva: no añadir la contraseña al comando. Spring Boot utiliza ese mismo usuario mediante las variables de entorno.
 
-El script crea la tabla `productos` dentro de `defaultdb`. No hace falta crear ni configurar un usuario MySQL adicional para esta práctica.
+Dentro del cliente MySQL, crear y comprobar la tabla:
+
+```sql
+SOURCE database/schema.sql;
+SHOW TABLES LIKE 'productos';
+DESCRIBE productos;
+```
+
+El script crea solo la tabla `productos` dentro de `defaultdb`. No hace falta otro usuario MySQL para esta práctica.
 
 ## Variables de entorno
 
@@ -66,7 +87,9 @@ Si después se decide verificar el CA y el nombre del servidor, cada integrante 
 
 1. Con `defaultdb` y la tabla `productos` preparados, configurar las tres variables y arrancar `Tema5Application` desde Eclipse.
 2. Comprobar que el registro muestra que el pool JDBC ha iniciado y que aparece `Started Tema5Application`. Esto indica que la aplicación ha arrancado y ha podido inicializar la conexión.
-3. En un cliente MySQL conectado a `defaultdb`, ejecutar `SHOW TABLES LIKE 'productos';` y `DESCRIBE productos;` para confirmar la tabla y sus columnas. Aún no existe la entidad `Producto`, por lo que `ddl-auto=validate` todavía no puede comparar esa tabla con un mapeo JPA.
+3. Si la tabla falta o no coincide con `Producto.java`, `ddl-auto=validate` impedirá el arranque.
+
+Quien no tenga la contraseña de Aiven puede revisar el código o ver una demostración en el equipo del grupo. Para ejecutarla en su propio equipo necesitará las credenciales entregadas por privado.
 
 | Mensaje habitual | Qué revisar |
 | --- | --- |
@@ -74,13 +97,10 @@ Si después se decide verificar el CA y el nombre del servidor, cada integrante 
 | `Communications link failure` | Host, puerto, servicio activo, conexión de red y cortafuegos. |
 | `Unknown database` | Nombre `defaultdb` dentro de `DB_URL`. |
 | Error SSL o certificado | Modo SSL, CA o truststore local si se usa verificación. |
-| Error de validación de esquema | Conexión establecida, pero tabla o columnas distintas de la entidad JPA; revisar `database/schema.sql`. Este caso será comprobable cuando exista `Producto.java`. |
+| Error de validación de esquema | Conexión establecida, pero falta `productos` o sus columnas no coinciden con `Producto.java`; revisar `database/schema.sql`. |
 
 Un fallo de conexión aparece antes de poder consultar la base y suele mencionar autenticación, red o TLS. Un fallo de esquema aparece después de conectar, durante la validación JPA, e identifica una tabla o columna que falta o no coincide.
 
-## Estado actual
+## Límites de esta etapa
 
-- El proyecto contiene la clase principal y la configuración Maven.
-- `database/schema.sql` define la tabla `productos`.
-- Están pendientes la entidad, el repositorio, el servicio, el controlador y las pruebas CRUD de Persona 1.
-- La conexión real a Aiven y la persistencia todavía requieren los datos y una comprobación con el servicio activo.
+`ProductoService` usa temporalmente `NoSuchElementException` e `IllegalStateException`. Hasta que la Persona 2 añada el tratamiento global, los errores no tienen todavía la respuesta JSON definitiva ni los códigos `404` y `409` previstos. La Persona 3 añadirá DTO, validaciones y las pruebas de los endpoints.
