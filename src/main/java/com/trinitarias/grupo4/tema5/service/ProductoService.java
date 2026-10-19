@@ -1,7 +1,8 @@
 package com.trinitarias.grupo4.tema5.service;
 
 import java.util.List;
-import java.util.NoSuchElementException;
+import com.trinitarias.grupo4.tema5.exception.ProductoDuplicadoException;
+import com.trinitarias.grupo4.tema5.exception.ProductoNoEncontradoException;
 
 import org.springframework.stereotype.Service;
 
@@ -23,8 +24,7 @@ public class ProductoService {
 
     public Producto obtenerPorId(Long id) {
         return productoRepository.findById(id)
-                .orElseThrow(() -> new NoSuchElementException(
-                        "No existe el producto con ID " + id));
+                .orElseThrow(() -> new ProductoNoEncontradoException(id));
     }
 
     public Producto crear(Producto producto) {
@@ -54,8 +54,7 @@ public class ProductoService {
 
     private void comprobarCodigoDisponible(String codigo) {
         if (productoRepository.existsByCodigo(codigo)) {
-            throw new IllegalStateException(
-                    "Ya existe un producto con el código " + codigo);
+            throw new ProductoDuplicadoException(codigo);
         }
     }
 }
