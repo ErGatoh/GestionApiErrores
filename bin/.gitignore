@@ -1,0 +1,61 @@
+HELP.md
+target/
+.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+
+### STS ###
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+
+### IntelliJ IDEA ###
+.idea
+*.iws
+*.iml
+*.ipr
+
+### NetBeans ###
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+build/
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+### VS Code ###
+.vscode/
+/.metadata/
+
+### Credenciales locales ###
+.env
+.env.*
+!.env.example
+*.launch
+
+### Certificados y almacenes de confianza locales ###
+*.pem
+*.crt
+*.cer
+*.key
+*.p12
+*.pfx
+*.jks
+certs/
+truststores/
+
+### Archivos locales de contraseñas ###
+*.secret
+*.password
+credentials.properties
+application-local.properties
+
+project_handoff.md
+AGENTS.md
+Práctica 2 - Diseño correcto de una API REST.pdf
