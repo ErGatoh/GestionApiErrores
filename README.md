@@ -100,7 +100,117 @@ Un fallo de conexión aparece antes de poder consultar la base y suele mencionar
 
 ## Límites de esta etapa
 
-`ProductoService` usa temporalmente `NoSuchElementException` e `IllegalStateException`. Hasta que la Persona 2 añada el tratamiento global, los errores no tienen todavía la respuesta JSON definitiva ni los códigos `404` y `409` previstos. La Persona 3 añadirá DTO, validaciones y las pruebas de los endpoints.
+Esta base se entregó con `NoSuchElementException` e `IllegalStateException` como excepciones provisionales. Se sustituyen en la sección siguiente por excepciones propias y un manejo global de errores.
+
+## Tratamiento global de errores (Manuel)
+
+### ¿Qué problema resuelve esta parte?
+
+La base de Jorge lanzaba excepciones genéricas de Java (`NoSuchElementException`, `IllegalStateException`). Spring no sabía qué código HTTP corresponde a cada una, así que el cliente recibía un error confuso y sin un formato fijo.
+
+Ahora todos los errores se tratan en **un único sitio** y la API siempre responde con el **código HTTP adecuado** y un **JSON con la misma estructura**.
+
+### Solución
+
+Se ha creado el paquete `exception/`:
+
+| Clase | Función |
+| --- | --- |
+| `ProductoNoEncontradoException` | Se lanza cuando el producto buscado no existe (404). |
+| `ProductoDuplicadoException` | Se lanza cuando el código ya está en uso (409). |
+| `ErrorResponse` | Estructura común de todas las respuestas de error. |
+| `GlobalExceptionHandler` | Recoge las excepciones y las convierte en respuestas HTTP. |
+
+### Cómo funciona
+
+1. El servicio detecta un problema y lanza una excepción con `throw`.
+2. La excepción sube hasta Spring, que busca quién sabe tratarla.
+3. `GlobalExceptionHandler` está marcado con `@RestControllerAdvice`, que significa "vigila todos los controladores".
+4. Cada método con `@ExceptionHandler` se encarga de un tipo de excepción y decide el código HTTP y el mensaje.
+5. El cliente recibe un JSON con la estructura de `ErrorResponse`.
+
+El controlador no tiene ningún `try/catch`.
+
+### Cambios en `ProductoService`
+
+- `obtenerPorId` lanza `ProductoNoEncontradoException` en lugar de `NoSuchElementException`.
+- `comprobarCodigoDisponible` lanza `ProductoDuplicadoException` en lugar de `IllegalStateException`.
+- `actualizar` y `eliminar` no cambian: llaman a `obtenerPorId` y heredan el 404.
+
+### Formato de la respuesta de error
+
+```json
+{
+  "status": 404,
+  "error": "Not Found",
+  "message": "No existe el producto con ID 99999",
+  "path": "/api/productos/99999",
+  "timestamp": "2026-10-20T12:30:00"
+}
+```
+
+### Errores gestionados
+
+| Código | Cuándo ocurre | Excepción |
+| --- | --- | --- |
+| 404 Not Found | Producto inexistente | `ProductoNoEncontradoException` |
+| 404 Not Found | Ruta inexistente | `NoResourceFoundException` |
+| 409 Conflict | Código de producto repetido | `ProductoDuplicadoException` |
+| 409 Conflict | La base de datos rechaza el dato | `DataIntegrityViolationException` |
+| 400 Bad Request | Datos que no pasan `@Valid` | `MethodArgumentNotValidException` |
+| 400 Bad Request | JSON roto o vacío | `HttpMessageNotReadableException` |
+| 400 Bad Request | Id con formato incorrecto (`/abc`) | `MethodArgumentTypeMismatchException` |
+| 400 Bad Request | Falta un parámetro obligatorio | `MissingServletRequestParameterException` |
+| 405 Method Not Allowed | Método no permitido en la ruta | `HttpRequestMethodNotSupportedException` |
+| 415 Unsupported Media Type | Content-Type incorrecto | `HttpMediaTypeNotSupportedException` |
+| 503 Service Unavailable | Base de datos no disponible | `CannotCreateTransactionException`, `DataAccessResourceFailureException` |
+| 500 Internal Server Error | Cualquier error inesperado | `Exception` |
+
+Son 2 excepciones propias y 10 de Spring o de la base de datos, repartidas en 7 códigos HTTP distintos. El 400 de validación lo activa el DTO de la sección siguiente.
+
+### Mala práctica frente a buena práctica
+
+**Mala práctica:** repetir `try/catch` en cada método del controlador. Se duplica código y cada respuesta de error puede tener un formato distinto.
+
+```java
+@GetMapping("/{id}")
+public ResponseEntity<?> obtener(@PathVariable Long id) {
+    try {
+        return ResponseEntity.ok(productoService.obtenerPorId(id));
+    } catch (RuntimeException e) {
+        return ResponseEntity.status(404).body(e.getMessage());
+    }
+}
+```
+
+**Buena práctica (la de este proyecto):** el controlador solo hace su trabajo y los errores se tratan de forma centralizada.
+
+```java
+@GetMapping("/{id}")
+public ResponseEntity<Producto> obtenerPorId(@PathVariable Long id) {
+    return ResponseEntity.ok(productoService.obtenerPorId(id));
+}
+```
+
+```java
+@RestControllerAdvice
+public class GlobalExceptionHandler {
+
+    @ExceptionHandler(ProductoNoEncontradoException.class)
+    public ResponseEntity<ErrorResponse> handleNoEncontrado(
+            ProductoNoEncontradoException ex, HttpServletRequest request) {
+        return build(HttpStatus.NOT_FOUND, ex.getMessage(), request);
+    }
+    // ...resto de handlers
+}
+```
+
+### Conclusión de esta parte
+
+- **¿Qué problema resuelve?** Sustituye errores genéricos e inconsistentes por respuestas claras con el código HTTP correcto.
+- **¿Qué ventajas aporta?** Un formato único para todos los errores, controladores limpios y facilidad para añadir errores nuevos: basta con una excepción y un método en `GlobalExceptionHandler`.
+- **Errores frecuentes a evitar:** olvidar `@RestControllerAdvice` (el handler no se activa), poner la excepción en un paquete que Spring no escanea y devolver mensajes que revelan detalles internos de la base de datos.
+- **¿Cuándo merece la pena?** En cualquier API con más de un endpoint.
 
 ## DTOs, validaciones y pruebas (Jean)
 
