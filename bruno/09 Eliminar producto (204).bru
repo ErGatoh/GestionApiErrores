@@ -1,0 +1,17 @@
+meta {
+  name: 09 Eliminar producto (204)
+  type: http
+  seq: 9
+}
+
+delete {
+  url: {{baseUrl}}/api/productos/{{productoId}}
+  body: none
+  auth: none
+}
+
+tests {
+  test("devuelve 204 No Content", function () {
+    expect(res.status).to.equal(204);
+  });
+}

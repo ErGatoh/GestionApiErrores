@@ -1,0 +1,35 @@
+meta {
+  name: 01 Crear producto (201)
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/api/productos
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "nombre": "Ratón inalámbrico",
+    "codigo": "BRUNO-001",
+    "precio": 15.50
+  }
+}
+
+script:post-response {
+  if (res.status === 201) {
+    bru.setVar("productoId", res.body.id);
+  }
+}
+
+tests {
+  test("devuelve 201 Created", function () {
+    expect(res.status).to.equal(201);
+  });
+  test("devuelve el DTO con id", function () {
+    expect(res.body.id).to.be.a("number");
+    expect(res.body.codigo).to.equal("BRUNO-001");
+  });
+}

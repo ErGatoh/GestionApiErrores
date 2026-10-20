@@ -1,0 +1,6 @@
+{
+  "version": "1",
+  "name": "API Productos - Tema 5",
+  "type": "collection",
+  "ignore": ["node_modules", ".git"]
+}

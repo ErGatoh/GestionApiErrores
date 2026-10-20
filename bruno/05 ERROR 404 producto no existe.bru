@@ -1,0 +1,20 @@
+meta {
+  name: 05 ERROR 404 producto no existe
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{baseUrl}}/api/productos/999999
+  body: none
+  auth: none
+}
+
+tests {
+  test("devuelve 404 con formato de error", function () {
+    expect(res.status).to.equal(404);
+    expect(res.body.status).to.equal(404);
+    expect(res.body.error).to.equal("Not Found");
+    expect(res.body.path).to.equal("/api/productos/999999");
+  });
+}

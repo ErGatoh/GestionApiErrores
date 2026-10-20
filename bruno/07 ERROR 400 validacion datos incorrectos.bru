@@ -1,0 +1,30 @@
+meta {
+  name: 07 ERROR 400 validacion datos incorrectos
+  type: http
+  seq: 7
+}
+
+post {
+  url: {{baseUrl}}/api/productos
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "nombre": "",
+    "codigo": "BRUNO-002",
+    "precio": -5
+  }
+}
+
+tests {
+  test("devuelve 400 con formato de error", function () {
+    expect(res.status).to.equal(400);
+    expect(res.body.error).to.equal("Bad Request");
+  });
+  test("el mensaje indica los campos fallidos", function () {
+    expect(res.body.message).to.include("nombre");
+    expect(res.body.message).to.include("precio");
+  });
+}

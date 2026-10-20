@@ -101,3 +101,138 @@ Un fallo de conexión aparece antes de poder consultar la base y suele mencionar
 ## Límites de esta etapa
 
 `ProductoService` usa temporalmente `NoSuchElementException` e `IllegalStateException`. Hasta que la Persona 2 añada el tratamiento global, los errores no tienen todavía la respuesta JSON definitiva ni los códigos `404` y `409` previstos. La Persona 3 añadirá DTO, validaciones y las pruebas de los endpoints.
+
+## DTOs, validaciones y pruebas (Jean)
+
+### ¿Qué problema resuelve esta parte?
+
+Hasta ahora la API aceptaba y devolvía directamente la entidad JPA `Producto`. Eso tiene dos problemas:
+
+1. **Nada comprobaba los datos de entrada.** Un nombre vacío o un precio negativo se guardaban tal cual, o hacían fallar a la base de datos con un error poco claro.
+2. **La estructura interna de la base de datos quedaba expuesta.** Cualquier campo que se añadiera a la entidad saldría automáticamente hacia el cliente.
+
+### Solución
+
+| Clase | Función |
+| --- | --- |
+| `ProductoRequestDTO` | Datos que el cliente puede enviar en `POST` y `PUT`. Lleva las validaciones. No incluye `id`, que genera la base de datos. |
+| `ProductoResponseDTO` | Datos que la API devuelve. Es lo único que sale al exterior. |
+| `ProductoMapper` | Convierte entre la entidad `Producto` y los DTOs. |
+
+La entidad solo se usa dentro de `ProductoService`. El controlador recibe y devuelve únicamente DTOs.
+
+### Validaciones (Bean Validation)
+
+| Campo | Reglas | Mensaje |
+| --- | --- | --- |
+| `nombre` | `@NotBlank`, `@Size(max = 100)` | El nombre es obligatorio / no puede superar los 100 caracteres |
+| `codigo` | `@NotBlank`, `@Size(max = 50)` | El código es obligatorio / no puede superar los 50 caracteres |
+| `precio` | `@NotNull`, `@Positive`, `@Digits(integer = 8, fraction = 2)` | El precio es obligatorio / debe ser mayor que 0 / admite como máximo 8 enteros y 2 decimales |
+
+Los límites coinciden con las columnas de la tabla `productos` (`VARCHAR(100)`, `VARCHAR(50)`, `DECIMAL(10,2)`), de modo que un dato demasiado largo se rechaza con un 400 claro antes de llegar a la base de datos.
+
+La validación se activa con `@Valid` en el controlador:
+
+```java
+@PostMapping
+public ResponseEntity<ProductoResponseDTO> crear(@Valid @RequestBody ProductoRequestDTO datos) {
+    ProductoResponseDTO creado = productoService.crear(datos);
+    return ResponseEntity.status(HttpStatus.CREATED).body(creado);
+}
+```
+
+Si falla alguna regla, Spring lanza `MethodArgumentNotValidException` antes de ejecutar el método. La recoge `GlobalExceptionHandler` y devuelve un 400 con el mismo formato que el resto de errores.
+
+### Mala práctica frente a buena práctica
+
+**Mala práctica: controlador con `try/catch` y entidad expuesta**
+
+```java
+@PostMapping
+public ResponseEntity<?> crear(@RequestBody Producto producto) {
+    try {
+        return ResponseEntity.status(201).body(productoService.crear(producto));
+    } catch (ProductoDuplicadoException e) {
+        return ResponseEntity.status(409).body(e.getMessage());
+    } catch (Exception e) {
+        return ResponseEntity.status(500).body("Error");
+    }
+}
+```
+
+- Se repite en cada método del controlador.
+- Cada respuesta de error tiene una forma distinta.
+- No se valida nada: un precio negativo llega hasta la base de datos.
+- Devuelve la entidad JPA directamente.
+
+**Buena práctica: controlador limpio, DTOs y manejo centralizado**
+
+```java
+@PostMapping
+public ResponseEntity<ProductoResponseDTO> crear(@Valid @RequestBody ProductoRequestDTO datos) {
+    ProductoResponseDTO creado = productoService.crear(datos);
+    return ResponseEntity.status(HttpStatus.CREATED).body(creado);
+}
+```
+
+- Sin `try/catch`: los errores los gestiona `@RestControllerAdvice`.
+- Los datos se validan antes de entrar en el servicio.
+- Todas las respuestas de error comparten estructura.
+- La entidad no sale de la capa de servicio.
+
+### Pruebas con Bruno
+
+La colección está en la carpeta [`bruno/`](bruno/). Para usarla:
+
+1. Arrancar la API (`Tema5Application`) con las variables de entorno configuradas.
+2. En Bruno: **Open Collection** y seleccionar la carpeta `bruno`.
+3. Elegir el entorno **local** (`baseUrl = http://localhost:8080`).
+4. Ejecutar con **Run** sobre la colección. Las peticiones deben lanzarse en orden, porque la primera guarda el `id` que usan las demás.
+
+| # | Petición | Resultado esperado |
+| --- | --- | --- |
+| 01 | `POST /api/productos` válido | 201 Created |
+| 02 | `GET /api/productos` | 200 OK |
+| 03 | `GET /api/productos/{id}` | 200 OK |
+| 04 | `PUT /api/productos/{id}` | 200 OK |
+| 05 | `GET /api/productos/999999` | **404** Not Found |
+| 06 | `POST` con código repetido | **409** Conflict |
+| 07 | `POST` con nombre vacío y precio negativo | **400** Bad Request |
+| 08 | `GET /api/productos/abc` | **400** Bad Request |
+| 09 | `DELETE /api/productos/{id}` | 204 No Content |
+| 10 | `DELETE` del mismo id otra vez | 404 Not Found |
+
+**Resultado de la ejecución completa:**
+
+![Resultado de ejecutar la colección completa](docs/img/01-run-coleccion.png)
+
+**Creación correcta (201):**
+
+![POST válido con respuesta 201](docs/img/02-post-201.png)
+
+#### Errores con estructura coherente
+
+Los tres errores comparten la misma forma (`status`, `error`, `message`, `path`, `timestamp`).
+
+**404: producto no encontrado**
+
+![Error 404](docs/img/03-error-404.png)
+
+**409: código de producto duplicado**
+
+![Error 409](docs/img/04-error-409.png)
+
+**400: datos incorrectos (validación)**
+
+![Error 400 por validación](docs/img/05-error-400-validacion.png)
+
+**400: identificador con formato incorrecto**
+
+![Error 400 por id incorrecto](docs/img/06-error-400-id.png)
+
+### Conclusión de esta parte
+
+- **¿Qué problema resuelve?** Evita que lleguen datos inválidos a la base de datos y que la entidad JPA quede expuesta.
+- **¿Qué ventajas aporta?** Errores claros para el cliente, un contrato de API estable y un controlador sin código repetitivo.
+- **Errores frecuentes a evitar:** olvidar `@Valid` (las anotaciones del DTO se ignoran), devolver la entidad directamente y escribir mensajes de validación poco claros.
+- **¿Cuándo merece la pena?** Siempre que la API reciba datos de un cliente externo; es una práctica básica en cualquier API profesional.

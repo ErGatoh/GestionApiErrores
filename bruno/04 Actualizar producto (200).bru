@@ -1,0 +1,26 @@
+meta {
+  name: 04 Actualizar producto (200)
+  type: http
+  seq: 4
+}
+
+put {
+  url: {{baseUrl}}/api/productos/{{productoId}}
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "nombre": "Ratón inalámbrico PRO",
+    "codigo": "BRUNO-001",
+    "precio": 19.90
+  }
+}
+
+tests {
+  test("devuelve 200 con los datos nuevos", function () {
+    expect(res.status).to.equal(200);
+    expect(res.body.nombre).to.equal("Ratón inalámbrico PRO");
+  });
+}

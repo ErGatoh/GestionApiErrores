@@ -1,0 +1,18 @@
+meta {
+  name: 08 ERROR 400 id con formato incorrecto
+  type: http
+  seq: 8
+}
+
+get {
+  url: {{baseUrl}}/api/productos/abc
+  body: none
+  auth: none
+}
+
+tests {
+  test("devuelve 400 con formato de error", function () {
+    expect(res.status).to.equal(400);
+    expect(res.body.error).to.equal("Bad Request");
+  });
+}

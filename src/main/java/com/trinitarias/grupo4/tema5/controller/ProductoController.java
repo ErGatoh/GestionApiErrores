@@ -13,8 +13,11 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.trinitarias.grupo4.tema5.model.Producto;
+import com.trinitarias.grupo4.tema5.dto.ProductoRequestDTO;
+import com.trinitarias.grupo4.tema5.dto.ProductoResponseDTO;
 import com.trinitarias.grupo4.tema5.service.ProductoService;
+
+import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/productos")
@@ -27,28 +30,26 @@ public class ProductoController {
     }
 
     @GetMapping
-    public ResponseEntity<List<Producto>> obtenerTodos() {
+    public ResponseEntity<List<ProductoResponseDTO>> obtenerTodos() {
         return ResponseEntity.ok(productoService.obtenerTodos());
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Producto> obtenerPorId(@PathVariable Long id) {
+    public ResponseEntity<ProductoResponseDTO> obtenerPorId(@PathVariable Long id) {
         return ResponseEntity.ok(productoService.obtenerPorId(id));
     }
 
     @PostMapping
-    public ResponseEntity<Producto> crear(@RequestBody Producto producto) {
-        Producto productoCreado = productoService.crear(producto);
-        return ResponseEntity.status(HttpStatus.CREATED).body(productoCreado);
+    public ResponseEntity<ProductoResponseDTO> crear(@Valid @RequestBody ProductoRequestDTO datos) {
+        ProductoResponseDTO creado = productoService.crear(datos);
+        return ResponseEntity.status(HttpStatus.CREATED).body(creado);
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<Producto> actualizar(
+    public ResponseEntity<ProductoResponseDTO> actualizar(
             @PathVariable Long id,
-            @RequestBody Producto datosProducto) {
-
-        Producto productoActualizado = productoService.actualizar(id, datosProducto);
-        return ResponseEntity.ok(productoActualizado);
+            @Valid @RequestBody ProductoRequestDTO datos) {
+        return ResponseEntity.ok(productoService.actualizar(id, datos));
     }
 
     @DeleteMapping("/{id}")

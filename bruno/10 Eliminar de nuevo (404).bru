@@ -1,0 +1,17 @@
+meta {
+  name: 10 Eliminar de nuevo (404)
+  type: http
+  seq: 10
+}
+
+delete {
+  url: {{baseUrl}}/api/productos/{{productoId}}
+  body: none
+  auth: none
+}
+
+tests {
+  test("devuelve 404 porque ya no existe", function () {
+    expect(res.status).to.equal(404);
+  });
+}

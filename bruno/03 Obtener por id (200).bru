@@ -1,0 +1,17 @@
+meta {
+  name: 03 Obtener por id (200)
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/api/productos/{{productoId}}
+  body: none
+  auth: none
+}
+
+tests {
+  test("devuelve 200", function () {
+    expect(res.status).to.equal(200);
+  });
+}

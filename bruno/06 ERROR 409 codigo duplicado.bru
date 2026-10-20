@@ -1,0 +1,26 @@
+meta {
+  name: 06 ERROR 409 codigo duplicado
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{baseUrl}}/api/productos
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "nombre": "Otro ratón",
+    "codigo": "BRUNO-001",
+    "precio": 10.00
+  }
+}
+
+tests {
+  test("devuelve 409 con formato de error", function () {
+    expect(res.status).to.equal(409);
+    expect(res.body.error).to.equal("Conflict");
+  });
+}

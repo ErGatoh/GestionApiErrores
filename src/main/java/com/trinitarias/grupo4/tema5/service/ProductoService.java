@@ -1,11 +1,14 @@
 package com.trinitarias.grupo4.tema5.service;
 
 import java.util.List;
-import com.trinitarias.grupo4.tema5.exception.ProductoDuplicadoException;
-import com.trinitarias.grupo4.tema5.exception.ProductoNoEncontradoException;
 
 import org.springframework.stereotype.Service;
 
+import com.trinitarias.grupo4.tema5.dto.ProductoMapper;
+import com.trinitarias.grupo4.tema5.dto.ProductoRequestDTO;
+import com.trinitarias.grupo4.tema5.dto.ProductoResponseDTO;
+import com.trinitarias.grupo4.tema5.exception.ProductoDuplicadoException;
+import com.trinitarias.grupo4.tema5.exception.ProductoNoEncontradoException;
 import com.trinitarias.grupo4.tema5.model.Producto;
 import com.trinitarias.grupo4.tema5.repository.ProductoRepository;
 
@@ -18,38 +21,45 @@ public class ProductoService {
         this.productoRepository = productoRepository;
     }
 
-    public List<Producto> obtenerTodos() {
-        return productoRepository.findAll();
+    public List<ProductoResponseDTO> obtenerTodos() {
+        return productoRepository.findAll().stream()
+                .map(ProductoMapper::toResponse)
+                .toList();
     }
 
-    public Producto obtenerPorId(Long id) {
-        return productoRepository.findById(id)
-                .orElseThrow(() -> new ProductoNoEncontradoException(id));
+    public ProductoResponseDTO obtenerPorId(Long id) {
+        return ProductoMapper.toResponse(buscarEntidad(id));
     }
 
-    public Producto crear(Producto producto) {
-        comprobarCodigoDisponible(producto.getCodigo());
-        return productoRepository.save(producto);
+    public ProductoResponseDTO crear(ProductoRequestDTO datos) {
+        comprobarCodigoDisponible(datos.getCodigo());
+        Producto guardado = productoRepository.save(ProductoMapper.toEntity(datos));
+        return ProductoMapper.toResponse(guardado);
     }
 
-    public Producto actualizar(Long id, Producto datosProducto) {
-        Producto productoActual = obtenerPorId(id);
+    public ProductoResponseDTO actualizar(Long id, ProductoRequestDTO datos) {
+        Producto productoActual = buscarEntidad(id);
 
         // El mismo producto puede conservar su código; otro producto no puede usarlo.
-        if (!productoActual.getCodigo().equals(datosProducto.getCodigo())) {
-            comprobarCodigoDisponible(datosProducto.getCodigo());
+        if (!productoActual.getCodigo().equals(datos.getCodigo())) {
+            comprobarCodigoDisponible(datos.getCodigo());
         }
 
-        productoActual.setNombre(datosProducto.getNombre());
-        productoActual.setCodigo(datosProducto.getCodigo());
-        productoActual.setPrecio(datosProducto.getPrecio());
+        productoActual.setNombre(datos.getNombre());
+        productoActual.setCodigo(datos.getCodigo());
+        productoActual.setPrecio(datos.getPrecio());
 
-        return productoRepository.save(productoActual);
+        return ProductoMapper.toResponse(productoRepository.save(productoActual));
     }
 
     public void eliminar(Long id) {
-        Producto producto = obtenerPorId(id);
-        productoRepository.delete(producto);
+        productoRepository.delete(buscarEntidad(id));
+    }
+
+    // La entidad solo se usa dentro del servicio; nunca sale hacia el controlador.
+    private Producto buscarEntidad(Long id) {
+        return productoRepository.findById(id)
+                .orElseThrow(() -> new ProductoNoEncontradoException(id));
     }
 
     private void comprobarCodigoDisponible(String codigo) {
